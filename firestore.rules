@@ -1,0 +1,60 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper Functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // --- User Rules ---
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow create: if isOwner(userId) && 
+                      request.resource.data.keys().hasAll(['uid', 'fullName', 'email']) &&
+                      request.resource.data.uid == userId;
+      allow update: if isOwner(userId) && 
+                      request.resource.data.uid == userId;
+
+      // --- Nested Collections ---
+      
+      // Family Members
+      match /familyMembers/{memberId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Medical Reports
+      match /reports/{reportId} {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId) && 
+                                request.resource.data.keys().hasAll(['title', 'category', 'date']) &&
+                                request.resource.data.title is string &&
+                                request.resource.data.title.size() <= 200 &&
+                                (request.resource.data.get('riskLevel', 'Low') in ['Low', 'Moderate', 'High', 'Critical']);
+        allow delete: if isOwner(userId);
+      }
+
+      // Medicines
+      match /medicines/{medicineId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Appointments
+      match /appointments/{appointmentId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+  }
+}

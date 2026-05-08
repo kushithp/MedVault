@@ -1,0 +1,103 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "fullName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "dob": { "type": "string" },
+        "bloodGroup": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "fullName", "email"]
+    },
+    "FamilyMember": {
+      "title": "Family Member",
+      "description": "Family members linked to a user.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "relationship": { "type": "string" },
+        "age": { "type": "number" },
+        "bloodGroup": { "type": "string" },
+        "pennicillinAllergy": { "type": "boolean" }
+      }
+    },
+    "MedicalReport": {
+      "title": "Medical Report",
+      "description": "Stored medical report metadata and AI summary.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "category": { "type": "string" },
+        "reportType": { "type": "string" },
+        "bodyPart": { "type": "string" },
+        "date": { "type": "string" },
+        "summary": { "type": "string" },
+        "findings": { "type": "array", "items": { "type": "string" } },
+        "riskLevel": { "type": "string", "enum": ["Low", "Moderate", "High", "Critical"] },
+        "confidenceScore": { "type": "number" },
+        "ocrText": { "type": "string" },
+        "recommendations": { "type": "array", "items": { "type": "string" } },
+        "questionsForDoctor": { "type": "array", "items": { "type": "string" } },
+        "medicalTerms": { "type": "object" },
+        "fileUrl": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "familyMemberId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "MedicineReminder": {
+      "title": "Medicine Reminder",
+      "description": "Schedule for taking medicines.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "dosage": { "type": "string" },
+        "schedule": { "type": "string" },
+        "remains": { "type": "number" },
+        "total": { "type": "number" },
+        "ownerId": { "type": "string" }
+      }
+    },
+    "Appointment": {
+      "title": "Appointment",
+      "description": "Scheduled doctor visits.",
+      "type": "object",
+      "properties": {
+        "doctor": { "type": "string" },
+        "specialty": { "type": "string" },
+        "date": { "type": "string" },
+        "time": { "type": "string" },
+        "location": { "type": "string" },
+        "type": { "type": "string" },
+        "ownerId": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Primary user profiles."
+    },
+    "/users/{userId}/familyMembers/{memberId}": {
+      "schema": "FamilyMember",
+      "description": "Family members of the user."
+    },
+    "/users/{userId}/reports/{reportId}": {
+      "schema": "MedicalReport",
+      "description": "Medical reports for a user or their family."
+    },
+    "/users/{userId}/medicines/{medicineId}": {
+      "schema": "MedicineReminder",
+      "description": "Medicines tracked by the user."
+    },
+    "/users/{userId}/appointments/{appointmentId}": {
+      "schema": "Appointment",
+      "description": "Appointments for the user."
+    }
+  }
+}

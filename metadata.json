@@ -1,0 +1,15 @@
+{
+  "name": "MedVault AI",
+  "description": "A secure, AI-powered personal health record platform for organizing medical reports, prescriptions, and family health history with intelligent summaries.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "AI-powered medical report summarization",
+    "OCR for scanned reports",
+    "Prescription and medicine tracking",
+    "Family member record management",
+    "Health analytics and timeline"
+  ]
+}
