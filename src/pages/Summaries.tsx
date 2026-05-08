@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { 
   Search, 
   Sparkles,
@@ -13,7 +14,9 @@ import {
   Info,
   History,
   TrendingDown,
-  Scale
+  Scale,
+  Plus,
+  Loader2
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import ReactMarkdown from "react-markdown";
@@ -29,11 +32,11 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { compareReports } from "@/src/lib/gemini";
 import { ExportModal } from "@/src/components/export/ExportModal";
-
 export default function Summaries() {
   const { user } = useAuthStore();
+  const location = useLocation();
   const [records, setRecords] = React.useState<any[]>([]);
-  const [selectedId, setSelectedId] = React.useState<string | null>(null);
+  const [selectedId, setSelectedId] = React.useState<string | null>(location.state?.reportId || null);
   const [compareMode, setCompareMode] = React.useState(false);
   const [compareId, setCompareId] = React.useState<string | null>(null);
   const [comparisonText, setComparisonText] = React.useState<string | null>(null);
@@ -248,8 +251,8 @@ export default function Summaries() {
                 </Button>
               </div>
             </header>
-            <ScrollArea className="flex-1 custom-scrollbar">
-              <div className="max-w-4xl mx-auto p-6 lg:p-10 space-y-10 pb-24">
+            <div className="scroll-container custom-scrollbar overflow-x-hidden">
+              <div className="max-w-4xl mx-auto p-6 lg:p-10 space-y-10 pb-24 min-h-0">
                 
                 {/* Comparison Result Overlay */}
                 <AnimatePresence>
@@ -436,7 +439,7 @@ export default function Summaries() {
                   </div>
                 </motion.div>
               </div>
-            </ScrollArea>
+            </div>
             <ExportModal 
               isOpen={isExportModalOpen} 
               onOpenChange={setIsExportModalOpen} 

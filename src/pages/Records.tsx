@@ -39,10 +39,16 @@ export default function Records() {
   const [selectedRecord, setSelectedRecord] = React.useState<any | null>(null);
   const [isExportModalOpen, setIsExportModalOpen] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState("");
+  const [familyMembers, setFamilyMembers] = React.useState<any[]>([]);
 
-  // Fetch records from Firestore
+  // Fetch records and family members from Firestore
   React.useEffect(() => {
     if (!user) return;
+
+    const qFam = query(collection(db, "users", user.uid, "familyMembers"));
+    const unsubFam = onSnapshot(qFam, (snapshot) => {
+      setFamilyMembers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
 
     const q = query(
       collection(db, "users", user.uid, "reports"),
@@ -60,8 +66,17 @@ export default function Records() {
       toast.error("Failed to sync records.");
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      unsubFam();
+    };
   }, [user]);
+
+  const getPatientName = (memberId: string | null) => {
+    if (!memberId) return "Primary (Me)";
+    const member = familyMembers.find(m => m.id === memberId);
+    return member ? member.name : "Member";
+  };
 
   const filteredRecords = records.filter(r => 
     r.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -115,7 +130,7 @@ export default function Records() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto custom-scrollbar p-6 lg:p-8">
+      <main className="scroll-container custom-scrollbar p-6 lg:p-8">
         <div className="max-w-7xl mx-auto space-y-8">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
@@ -159,7 +174,12 @@ export default function Records() {
                         </div>
                         <div>
                           <h3 className="font-bold text-[#1E293B] leading-tight truncate max-w-[150px]">{record.title}</h3>
-                          <p className="text-[10px] text-[#64748B] font-bold uppercase tracking-wider">{record.date}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <p className="text-[10px] text-[#64748B] font-bold uppercase tracking-wider">{record.date}</p>
+                            <span className="text-[10px] text-blue-600 font-bold px-1.5 py-0.5 bg-blue-50 rounded">
+                              {getPatientName(record.familyMemberId)}
+                            </span>
+                          </div>
                         </div>
                       </div>
                       <Badge variant="outline" className={cn("text-[10px] font-bold uppercase tracking-wider", getRiskColor(record.riskLevel))}>
@@ -192,7 +212,7 @@ export default function Records() {
                     <div className="p-5 flex items-center gap-2 mt-auto border-t border-[#E2E8F0] bg-[#F8FAFC]">
                       <Button 
                         variant="outline" 
-                        onClick={() => navigate('/summaries')}
+                        onClick={() => navigate('/summaries', { state: { reportId: record.id } })}
                         className="flex-1 h-9 rounded-lg border-[#E2E8F0] text-xs font-bold bg-white"
                       >
                         <Eye className="mr-2 h-3.5 w-3.5" /> Details

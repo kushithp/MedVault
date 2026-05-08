@@ -6,7 +6,7 @@ import { signInWithGoogle } from "@/src/lib/firebase";
 
 export default function Landing() {
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
+    <div className="h-screen bg-slate-50 flex flex-col items-center overflow-y-auto custom-scrollbar p-6 py-12 md:py-24 text-center">
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}

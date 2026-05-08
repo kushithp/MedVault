@@ -105,7 +105,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         </div>
 
         {/* Right Content Area */}
-        <div className="flex-1 bg-white p-6 sm:p-8 flex flex-col overflow-y-auto custom-scrollbar">
+        <div className="scroll-container custom-scrollbar bg-white p-6 sm:p-8">
           <AnimatePresence mode="wait">
             {activeTab === 'export' ? (
                 <motion.div 

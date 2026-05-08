@@ -39,25 +39,65 @@ import { collection, query, onSnapshot, orderBy, limit } from "firebase/firestor
 export default function Dashboard() {
   const { user } = useAuthStore();
   const [recentReports, setRecentReports] = React.useState<any[]>([]);
-  const [stats, setStats] = React.useState({ total: 0, pending: 0 });
+  const [counts, setCounts] = React.useState({ reports: 0, medicines: 0, family: 0 });
+  const [loading, setLoading] = React.useState(true);
+
+  const [upcomingMeds, setUpcomingMeds] = React.useState<any[]>([]);
 
   React.useEffect(() => {
     if (!user) return;
 
-    const q = query(
+    // Reports Listener
+    const qReports = query(
       collection(db, "users", user.uid, "reports"),
       orderBy("createdAt", "desc"),
       limit(5)
     );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setRecentReports(docs);
-      setStats(prev => ({ ...prev, total: snapshot.size }));
+    const unsubReports = onSnapshot(qReports, (snapshot) => {
+      setRecentReports(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setCounts(prev => ({ ...prev, reports: snapshot.size }));
     });
 
-    return () => unsubscribe();
+    // Medicines Listener
+    const qMeds = query(collection(db, "users", user.uid, "medicines"));
+    const unsubMeds = onSnapshot(qMeds, (snapshot) => {
+      setCounts(prev => ({ ...prev, medicines: snapshot.size }));
+    });
+
+    // Family Listener
+    const qFamily = query(collection(db, "users", user.uid, "familyMembers"));
+    const unsubFamily = onSnapshot(qFamily, (snapshot) => {
+      setCounts(prev => ({ ...prev, family: snapshot.size }));
+    });
+
+    // Meds List Listener for Tracker
+    const qMedsList = query(
+      collection(db, "users", user.uid, "medicines"),
+      limit(2)
+    );
+    const unsubMedsList = onSnapshot(qMedsList, (snapshot) => {
+      setUpcomingMeds(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+
+    return () => {
+      unsubReports();
+      unsubMeds();
+      unsubFamily();
+      unsubMedsList();
+    };
   }, [user]);
+
+  const healthScore = React.useMemo(() => {
+    if (recentReports.length === 0) return 100;
+    const avgConfidence = recentReports.reduce((acc, r) => (acc + (r.confidenceScore || 0.8)), 0) / recentReports.length;
+    return Math.round(avgConfidence * 100);
+  }, [recentReports]);
+
+  const latestInsight = React.useMemo(() => {
+    if (recentReports.length === 0) return "Upload your first medical report to generate AI health insights and track your progress.";
+    const report = recentReports[0];
+    return `${report.simpleSummary || report.summary || "Your latest report is analyzed."} AI suggests: ${report.recommendations?.[0] || "Continue following your clinical advice."}`;
+  }, [recentReports]);
 
   return (
     <div className="flex flex-col h-screen bg-[#F8FAFC] overflow-hidden">
@@ -78,15 +118,15 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-8">
+      <main className="scroll-container custom-scrollbar p-4 sm:p-8">
         <div className="grid grid-cols-12 gap-6 max-w-7xl mx-auto">
           {/* Stat Grid */}
           <div className="col-span-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { title: "Total Reports", value: recentReports.length, change: "+3 this month", changeColor: "text-[#10B981]", icon: FileText },
-              { title: "Active Medicines", value: "4", subtitle: "Next dose: 2:00 PM", icon: Clock },
-              { title: "AI Health Score", value: "88/100", progress: 88, icon: TrendingUp },
-              { title: "Family Members", value: "3", avatars: ["bg-[#DBEAFE]", "bg-[#FCE7F3]", "bg-[#FEF3C7]"], icon: Users },
+              { title: "Total Reports", value: counts.reports, change: "+3 this month", changeColor: "text-[#10B981]", icon: FileText },
+              { title: "Active Medicines", value: counts.medicines, subtitle: "Next dose: 2:00 PM", icon: Clock },
+              { title: "AI Health Score", value: `${healthScore}/100`, progress: healthScore, icon: TrendingUp },
+              { title: "Family Members", value: counts.family, avatars: ["bg-[#DBEAFE]", "bg-[#FCE7F3]", "bg-[#FEF3C7]"], icon: Users },
             ].map((stat, i) => (
               <motion.div
                 key={stat.title}
@@ -136,15 +176,18 @@ export default function Dashboard() {
                   </div>
                   <div className="flex-1">
                     <div className="font-semibold text-[#1E293B]">{report.title}</div>
-                    <div className="text-xs text-[#64748B]">Quest Diagnostics • {report.date}</div>
+                    <div className="text-xs text-[#64748B] font-medium">{report.reportType || 'General'} • {report.date}</div>
                   </div>
                   <div className="flex space-x-2">
-                    <span className="bg-[#DCFCE7] text-[#166534] px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider">
-                      Normal Findings
-                    </span>
-                    <span className="bg-[#DBEAFE] text-[#1E40AF] px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider">
-                      AI Summarized
-                    </span>
+                    <Badge variant="outline" className={cn(
+                      "px-3 py-1 text-[10px] uppercase font-bold",
+                      report.riskLevel === 'Low' ? "bg-emerald-50 text-emerald-700" :
+                      report.riskLevel === 'High' ? "bg-rose-50 text-rose-700" :
+                      report.riskLevel === 'Critical' ? "bg-rose-100 text-rose-900 border-rose-200" :
+                      "bg-blue-50 text-blue-700"
+                    )}>
+                      {report.riskLevel || 'ANALYZED'} Findings
+                    </Badge>
                   </div>
                 </div>
               ))
@@ -157,34 +200,49 @@ export default function Dashboard() {
                 <span className="font-bold">AI Medical Insight</span>
               </div>
               <p className="text-sm leading-relaxed opacity-95">
-                Based on your latest blood report, your <strong>LDL Cholesterol</strong> has decreased by 12% from your last test. This indicates your current dietary changes are effective. AI recommends maintaining your current routine and adding 15 mins of morning sunlight.
+                {latestInsight}
               </p>
             </div>
           </div>
 
           {/* Medicine Tracker */}
           <div className="col-span-12 lg:col-span-4 flex flex-col gap-4">
-            <h2 className="text-lg font-bold text-[#1E293B]">Medicine Tracker</h2>
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-bold text-[#1E293B]">Medicine Tracker</h2>
+              <Link to="/medicines" className="text-xs font-bold text-blue-600">Open Tracker</Link>
+            </div>
             
-            <div className="bg-white border border-[#E2E8F0] border-l-4 border-l-[#2563EB] rounded-xl p-5 shadow-sm">
-              <div className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider mb-1">Next Dose: 2:00 PM</div>
-              <div className="font-bold text-[#1E293B] mb-1">Atorvastatin (20mg)</div>
-              <div className="text-xs text-[#64748B] mb-4">1 tablet • After lunch</div>
-              <Button variant="outline" className="w-full bg-[#F8FAFC] border-[#E2E8F0] text-xs font-bold h-9">
-                Mark as Taken
-              </Button>
-            </div>
+            {upcomingMeds.length === 0 ? (
+              <div className="bg-white border-2 border-dashed border-slate-200 rounded-xl p-8 text-center text-[#94A3B8]">
+                <p className="text-xs font-bold">No medicines tracked</p>
+              </div>
+            ) : (
+              upcomingMeds.map((med) => (
+                <div key={med.id} className="bg-white border border-[#E2E8F0] border-l-4 border-l-[#2563EB] rounded-xl p-5 shadow-sm">
+                  <div className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider mb-1">Next Dose</div>
+                  <div className="font-bold text-[#1E293B] mb-1">{med.name} ({med.dosage})</div>
+                  <div className="text-xs text-[#64748B] mb-4">{med.schedule}</div>
+                  <Button 
+                    variant="outline" 
+                    className="w-full bg-[#F8FAFC] border-[#E2E8F0] text-xs font-bold h-9"
+                    onClick={async () => {
+                      if (!user || med.remains <= 0) return;
+                      await updateDoc(doc(db, "users", user.uid, "medicines", med.id), {
+                        remains: med.remains - 1
+                      });
+                      toast.success(`${med.name} dose recorded`);
+                    }}
+                  >
+                    Mark as Taken
+                  </Button>
+                </div>
+              ))
+            )}
 
-            <div className="bg-white border border-[#E2E8F0] border-l-4 border-l-[#E2E8F0] rounded-xl p-5 shadow-sm opacity-80">
-              <div className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider mb-1">Evening: 8:00 PM</div>
-              <div className="font-bold text-[#1E293B] mb-1">Vitamin D3 (2000 IU)</div>
-              <div className="text-xs text-[#64748B]">1 capsule • With dinner</div>
-            </div>
-
-            <div className="bg-[#F8FAFC] border border-dashed border-[#CBD5E1] rounded-xl p-6 flex flex-col items-center justify-center text-[#94A3B8] group cursor-pointer hover:bg-slate-50 transition-colors">
+            <Link to="/medicines" className="bg-[#F8FAFC] border border-dashed border-[#CBD5E1] rounded-xl p-6 flex flex-col items-center justify-center text-[#94A3B8] group cursor-pointer hover:bg-slate-50 transition-colors">
               <Plus className="h-6 w-6 mb-2 group-hover:text-[#2563EB]" />
-              <span className="text-xs font-bold">Add reminder</span>
-            </div>
+              <span className="text-xs font-bold">Manage Schedule</span>
+            </Link>
           </div>
         </div>
       </main>

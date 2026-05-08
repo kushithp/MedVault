@@ -164,7 +164,7 @@ export const DragDropZone: React.FC<DragDropUploaderProps> = ({ onUploadComplete
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="grid gap-3 max-h-[300px] overflow-y-auto custom-scrollbar pr-2"
+            className="grid gap-3 max-h-[300px] overflow-y-auto thin-scrollbar pr-2"
           >
             {files.map((file) => (
               <motion.div

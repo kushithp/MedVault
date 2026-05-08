@@ -22,11 +22,16 @@ import { Separator } from "@/components/ui/separator";
 
 export default function Settings() {
   return (
-    <div className="p-8 space-y-8 bg-slate-50/30 h-full overflow-auto">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Account Settings</h1>
-        <p className="text-slate-500">Manage your profile, security, and notification preferences.</p>
-      </div>
+    <div className="flex flex-col h-screen bg-[#F8FAFC] overflow-hidden">
+      <header className="glass-header h-16 flex items-center justify-between px-6 lg:px-8 shrink-0">
+        <h1 className="text-xl font-bold text-[#1E293B]">System Settings</h1>
+      </header>
+
+      <main className="scroll-container custom-scrollbar px-6 lg:px-8 py-8 space-y-8">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Account Settings</h1>
+          <p className="text-slate-500">Manage your profile, security, and notification preferences.</p>
+        </div>
 
       <div className="max-w-4xl space-y-6">
         <Card>
@@ -99,6 +104,7 @@ export default function Settings() {
           </CardContent>
         </Card>
       </div>
+      </main>
     </div>
   );
 }

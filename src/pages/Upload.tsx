@@ -11,15 +11,26 @@ import { useAuthStore } from "@/src/store/authStore";
 import { toast } from "sonner";
 import * as pdfjsLib from 'pdfjs-dist';
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import mammoth from "mammoth";
 
 export default function UploadPage() {
   const { user } = useAuthStore();
   const [processing, setProcessing] = useState(false);
   const [recentReports, setRecentReports] = useState<any[]>([]);
+  const [familyMembers, setFamilyMembers] = useState<any[]>([]);
+  const [selectedMemberId, setSelectedMemberId] = useState<string>("self");
 
   React.useEffect(() => {
     if (!user) return;
+
+    // Fetch Family Members
+    const qFam = query(collection(db, "users", user.uid, "familyMembers"));
+    const unsubFam = onSnapshot(qFam, (snapshot) => {
+      setFamilyMembers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+
     const q = query(
       collection(db, "users", user.uid, "reports"), 
       orderBy("createdAt", "desc"),
@@ -28,7 +39,10 @@ export default function UploadPage() {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setRecentReports(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
-    return () => unsubscribe();
+    return () => {
+      unsubFam();
+      unsubscribe();
+    };
   }, [user]);
 
   const extractTextFromPdf = async (file: File): Promise<string> => {
@@ -87,7 +101,8 @@ export default function UploadPage() {
           summary: analysis.fullSummary,
           ocrText: text,
           createdAt: serverTimestamp(),
-          ownerId: user.uid
+          ownerId: user.uid,
+          familyMemberId: selectedMemberId === "self" ? null : selectedMemberId
         });
 
         toast.success(`Processed: ${file.name}`);
@@ -102,7 +117,7 @@ export default function UploadPage() {
 
   return (
     <div className="flex h-screen bg-[#F8FAFC] overflow-hidden">
-      <main className="flex-1 overflow-y-auto custom-scrollbar">
+      <main className="scroll-container custom-scrollbar">
         <div className="max-w-6xl mx-auto p-6 md:p-10 lg:p-12 py-10 md:py-16 space-y-12">
           {/* Header Section */}
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
@@ -133,7 +148,21 @@ export default function UploadPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
             {/* Upload Area */}
             <div className="lg:col-span-2 space-y-8">
-               <div className="bg-white rounded-3xl overflow-hidden shadow-xl shadow-blue-100/50">
+               <div className="bg-white rounded-3xl overflow-hidden shadow-xl shadow-blue-100/50 p-6 md:p-8 space-y-6">
+                 <div className="space-y-3">
+                   <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Patient Profile</Label>
+                   <Select value={selectedMemberId} onValueChange={setSelectedMemberId}>
+                     <SelectTrigger className="w-full h-11 rounded-xl bg-slate-50 border-slate-200">
+                       <SelectValue placeholder="Select patient" />
+                     </SelectTrigger>
+                     <SelectContent>
+                       <SelectItem value="self">Primary (My Records)</SelectItem>
+                       {familyMembers.map((member) => (
+                         <SelectItem key={member.id} value={member.id}>{member.name}</SelectItem>
+                       ))}
+                     </SelectContent>
+                   </Select>
+                 </div>
                  <DragDropZone onUploadComplete={handleUpload} isProcessing={processing} />
                </div>
                
@@ -179,7 +208,7 @@ export default function UploadPage() {
                   )}
                </div>
 
-               <div className="space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
+               <div className="space-y-4 max-h-[400px] overflow-y-auto thin-scrollbar pr-2">
                   {recentReports.length === 0 ? (
                     <div className="bg-[#F8FAFC] border-2 border-dashed border-[#E2E8F0] rounded-3xl p-8 text-center">
                        <p className="text-sm font-medium text-slate-400italic">No reports processed yet.</p>
